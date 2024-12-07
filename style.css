@@ -12,8 +12,11 @@
     position: -webkit-sticky;
     position: sticky;
     top: 0px;
+    margin-top: 0px;
+    margin-left: 0px;
+    margin-right: 0px;
     width: max-content;
-    height: 100px;
-    color: rgb(53, 255, 3);
+    height: 80px;
+    color: white;
     background: black;
 }
