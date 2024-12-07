@@ -48,3 +48,8 @@ a:hover:after
 {
     justify-content: space-between;
 }
+li
+{
+    list-style: none;
+    justify-content: space-around;
+}
