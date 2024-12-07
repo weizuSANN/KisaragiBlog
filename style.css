@@ -10,6 +10,7 @@
     align-items: center;
     justify-content: center;
     position: -webkit-sticky;
+    opacity: 0.85;
     position: sticky;
     top: 0px;
     margin-left: calc(50% - 50vw) + 50px;
@@ -18,5 +19,4 @@
     height: 80px;
     color: white;
     background: black;
-    opacity: 0.85;
 }
