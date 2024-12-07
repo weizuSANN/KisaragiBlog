@@ -20,13 +20,13 @@
     background: black;
     opacity: 0.9;
 }
-.UnderLine
+a
 {
     display: inline-block;
     position: relative;
     overflow: hidden;
 }
-UnderLine:after
+a:after
 {
     position: absolute;
     bottom: 0;
@@ -38,7 +38,7 @@ UnderLine:after
     transition: transform cubic-bezier(0.215 , 0.61 , 0.355 , 1) 0.4s;
     content: "";
 }
-UnderLine:hover:after
+a:hover:after
 {
     transform: translate(0 , 0);
 }
