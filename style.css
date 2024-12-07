@@ -12,10 +12,8 @@
     position: -webkit-sticky;
     position: sticky;
     top: 0px;
-    margin-top: 0px;
-    margin-left: 0px;
-    margin-right: 0px;
-    width: 100%;
+    margin: 0 calc(50%-50vw);
+    width: 100vw;
     height: 80px;
     color: white;
     background: black;
