@@ -11,11 +11,12 @@
     justify-content: center;
     position: -webkit-sticky;
     position: sticky;
+    width: 100vw + 100px;
     top: 0px;
     margin-left: calc(50% - 50vw) + 50px;
     margin-right: calc(50% - 50vw) + 50px;
-    width: 100vw + 100px;
     height: 80px;
     color: white;
     background: black;
+    opacity: 0.8;
 }
