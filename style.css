@@ -44,3 +44,7 @@ a:hover:after
 {
     transform: translate(0 , 0);
 }
+.EvenlySpace
+{
+    justify-content: space-between;
+}
