@@ -10,7 +10,7 @@
     align-items: center;
     justify-content: center;
     position: -webkit-sticky;
-    opacity: 0.85;
+    /* opacity: 0.85; */
     position: sticky;
     top: 0px;
     margin-left: calc(50% - 50vw) + 50px;
