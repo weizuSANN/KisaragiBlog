@@ -25,6 +25,8 @@ a
     display: inline-block;
     position: relative;
     overflow: hidden;
+    color: white;
+    text-decoration: none;
 }
 a:after
 {
