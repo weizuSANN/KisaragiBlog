@@ -4,6 +4,39 @@
     position: sticky;
     top: 0;
 }
+#TopButton
+{
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background-color: #333;
+    text-align: right;
+    text-decoration: none;
+}
+#TopButton:hover
+{
+    background-color: #555;
+}
+.TopButtonClass
+{
+    /* display: flex; */
+    /* float: right; */
+    /* align-content: ; */
+    /* position: -webkit-sticky; */
+    display: block;
+    position: fixed;
+    right: 0px;
+    bottom: 0px;
+    text-align: center;
+    background-color: #333;
+    margin-bottom: 100px;
+    opacity: 0.7;
+}
+.TopButtonClass:hover
+{
+    background-color: #555;
+}
 .Menu
 {
     display: flex;
