@@ -44,12 +44,27 @@ a:hover:after
 {
     transform: translate(0 , 0);
 }
-.EvenlySpace
+a.NoUnderLine:after
 {
-    justify-content: space-between;
+    content: none;
 }
 li
 {
     list-style: none;
     /* margin-left: 20px; */
+}
+.Header
+{
+    /* display: flex; */
+    /* flex-wrap: wrap; */
+    
+    align-items: center;
+    justify-content: left;
+    width: 100vw + 100px;
+    top: 0px;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    height: 150px;
+    color: white;
+    background: linear-gradient(to top left, rgb(77, 122, 190) , rgb(29, 115, 244));
 }
