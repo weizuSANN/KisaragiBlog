@@ -1,11 +1,45 @@
 .main
 {
-    left: 0px;
-    margin-left : 100px;
+    /* left: 0px; */
+    margin-left : 60px;
+    margin-right: 60px;
+    margin-bottom: 20px;
     bottom: 0px;
     right: 0px;
-    margin-right: 100px;
+    /* margin-right: 60px; */
     background-color: rgb(233, 233, 233);
+}
+.mainText
+{
+    margin-left: 30px;
+    margin-right: 30px;
+    margin-bottom: 20px;
+}
+.tab
+{
+    margin: auto;
+    text-align: center;
+    background: rgb(66, 66, 66);
+    border-top-left-radius: 30px;
+    border-top-right-radius: 30px;
+    border-bottom-right-radius: 30px;
+    border-bottom-left-radius: 30px;
+    color: white;
+    margin-bottom: 20px;
+    scrollbar-width: thin;
+}
+.ScrollMap
+{
+    margin: auto;
+    border: 1px solid#000;
+    overflow-y: scroll;
+}
+.Spacer
+{
+    --w: 0;
+    --h: 0;
+    width: var(--w);
+    height: var(--h);
 }
 .TopButtonClass
 {
@@ -25,12 +59,13 @@
 }
 .Menu
 {
+    z-index: 100;
     display: flex;
     align-items: center;
     justify-content: center;
     position: -webkit-sticky;
     position: sticky;
-    width: 100vw;
+    width: 99.4vw;
     top: 0px;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
@@ -76,11 +111,79 @@ li
 {
     align-items: center;
     justify-content: left;
-    width: 100vw;
+    width: 99.4vw;
     top: 0px;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
     height: 150px;
     color: white;
     background: linear-gradient(to top left, rgb(77, 122, 190) , rgb(29, 115, 244));
+}
+
+/* ここから画像切り替え */
+.SlidePictureList
+{
+    position: relative;
+    width: 900px;
+    height: 600px;
+    margin: auto;
+    overflow: hidden;
+}
+.SlidePicture
+{
+    position: absolute;
+    width: 100%;
+    opacity: 0;
+    animation: ChangeAnimation 80s infinite;
+    background-position: center center;
+}
+.SlidePicture:nth-of-type(1)
+{
+    animation: FirstAnimation 80s infinite;
+    animation-delay: 0s;
+}
+.SlidePicture:nth-of-type(2)
+{
+    animation-delay: 10s;
+}
+.SlidePicture:nth-of-type(3)
+{
+    animation-delay: 20s;
+}
+.SlidePicture:nth-of-type(4)
+{
+    animation-delay: 30s;
+}
+.SlidePicture:nth-of-type(5)
+{
+    animation-delay: 40s;
+}
+.SlidePicture:nth-of-type(6)
+{
+    animation-delay: 50s;
+}
+.SlidePicture:nth-of-type(7)
+{
+    animation-delay: 60s;
+}
+.SlidePicture:nth-of-type(8)
+{
+    animation-delay: 70s;
+}
+@keyframes ChangeAnimation
+{
+    0%{opacity: 0;}
+    5%{opacity: 1;}
+    30%{opacity: 1;}
+    36%{opacity: 1;}
+    45%{opacity: 1;}
+    100%{opacity: 0;}
+}
+@keyframes FirstAnimation
+{
+    0%{opacity: 1;}
+    30%{opacity: 1;}
+    36%{opacity: 1;}
+    45%{opacity: 1;}
+    100%{opacity: 0;}
 }
