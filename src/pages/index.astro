@@ -1,49 +1,55 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
-import Footer from '../components/Footer.astro';
-import Header from '../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import FormattedDate from '../components/FormattedDate.astro';
+
+const posts = (await getCollection('blog')).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+).slice(0, 3);
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This template
-				serves as a lightweight, minimally-styled starting point for anyone looking to build a personal
-				website, blog, or portfolio with Astro.
+<BaseLayout>
+	<div class="space-y-12 animate-fade-in">
+		<div class="text-center space-y-4">
+			<h2 class="text-2xl font-serif tracking-widest text-neutral-800 border-b border-neutral-300 pb-4 inline-block px-8">Welcome</h2>
+			<p class="text-neutral-500 text-sm leading-relaxed mt-6">
+				当サイトへお越しいただきありがとうございます。<br />
+				なんもないですがゆっくりしていってください。<br />
 			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
+		</div>
+
+		{/* Main Visual Placeholder */}
+		<div class="w-full h-64 bg-neutral-200 border border-neutral-300 flex items-center justify-center shadow-inner group overflow-hidden relative">
+			<div class="absolute inset-0 bg-neutral-800 opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
+			<span class="text-neutral-400 tracking-widest font-serif text-sm relative z-10 uppercase">Main Visual</span>
+		</div>
+
+		<div class="space-y-6">
+			<h3 class="text-lg font-serif tracking-wider text-neutral-800 border-l-4 border-neutral-800 pl-3">Recent Updates</h3>
+			<ul class="space-y-4">
+				{posts.length > 0 ? (
+					posts.map((post) => (
+						<li class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 border-b border-neutral-200 pb-2 transition-colors hover:bg-neutral-200/50 group">
+							<span class="text-neutral-400 font-mono text-xs">
+								<FormattedDate date={post.data.pubDate} />
+							</span>
+							<a href={`/blog/${post.id}/`} class="text-neutral-700 hover:text-neutral-900 transition-colors flex-grow">
+								{post.data.title}
+							</a>
+							<span class="text-neutral-300 group-hover:text-neutral-500 transition-colors text-xs font-mono">
+								READ →
+							</span>
+						</li>
+					))
+				) : (
+					<li class="text-neutral-400 italic">No updates available.</li>
+				)}
 			</ul>
-			<p>
-				Have fun! If you get stuck, remember to
-				<a href="https://docs.astro.build/">read the docs</a>
-				or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out
-				<a href="https://github.com/Charca/astro-blog-template">astro-blog-template</a>
-				by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
-		</main>
-		<Footer />
-	</body>
-</html>
+			<div class="text-center mt-8">
+				<a href="/blog" class="inline-block px-8 py-2 border border-neutral-300 text-neutral-600 text-sm tracking-widest hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-300 uppercase font-serif">
+					View All Posts
+				</a>
+			</div>
+		</div>
+	</div>
+</BaseLayout>
