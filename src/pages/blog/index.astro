@@ -2,47 +2,119 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
-import { Tag as TagIcon } from 'lucide-astro';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
+
+const allTags = [...new Set(posts.flatMap((post) => post.data.tags))];
 ---
 
-<BaseLayout title="Blog | KisaragiLab">
+<BaseLayout title="Blog | KisaragiLab" description="日々の出来事や技術的な備忘録、制作の裏側などを綴っています。">
 	<div class="space-y-12 animate-fade-in">
-		<div class="text-center space-y-4">
-			<h2 class="text-2xl font-serif tracking-widest text-neutral-800 border-b border-neutral-300 pb-4 inline-block px-8">Blog</h2>
-			<p class="text-neutral-500 text-sm leading-relaxed mt-6">
+		<div class="text-center space-y-6">
+			<h2 class="text-3xl font-serif tracking-[0.3em] text-neutral-800 border-b border-neutral-300 pb-6 inline-block px-12 uppercase">
+				Blog
+			</h2>
+			<p class="text-neutral-500 text-sm tracking-wider italic">
 				日々の出来事や技術的な備忘録、制作の裏側などを綴っています。
 			</p>
 		</div>
 
+		{/* Search and Tags Bar */}
+		<div class="bg-neutral-200/50 p-6 md:p-8 space-y-6 shadow-inner border border-neutral-300">
+			<div class="flex flex-col md:flex-row gap-6 items-center">
+				<div class="relative w-full md:w-64">
+					<input 
+						id="blog-search"
+						type="text" 
+						placeholder="Search posts..." 
+						class="w-full bg-white border border-neutral-300 text-sm px-4 py-2 focus:outline-none focus:border-neutral-500 transition-colors text-neutral-800 placeholder-neutral-400"
+					/>
+					<div class="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+					</div>
+				</div>
+
+				<div class="flex flex-wrap gap-2 justify-center">
+					<button 
+						data-tag="all"
+						class="tag-button px-4 py-1.5 rounded-full bg-neutral-800 text-white text-xs tracking-widest transition-all hover:bg-neutral-700 active"
+					>
+						All
+					</button>
+					{allTags.map((tag) => (
+						<button 
+							data-tag={tag}
+							class="tag-button px-4 py-1.5 rounded-full bg-white border border-neutral-300 text-neutral-600 text-xs tracking-widest transition-all hover:border-neutral-800 hover:text-neutral-800 flex items-center gap-1.5 shadow-sm"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tag"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.59-6.59c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+							{tag}
+						</button>
+					))}
+					{/* Dummy tags for demo if no tags exist yet */}
+					{allTags.length === 0 && (
+						<>
+							<button data-tag="Gemini CLI" class="tag-button px-4 py-1.5 rounded-full bg-white border border-neutral-300 text-neutral-600 text-xs tracking-widest transition-all hover:border-neutral-800 hover:text-neutral-800 flex items-center gap-1.5 shadow-sm">
+								<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tag"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.59-6.59c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+								Gemini CLI
+							</button>
+							<button data-tag="Web Development" class="tag-button px-4 py-1.5 rounded-full bg-white border border-neutral-300 text-neutral-600 text-xs tracking-widest transition-all hover:border-neutral-800 hover:text-neutral-800 flex items-center gap-1.5 shadow-sm">
+								<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tag"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.59-6.59c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+								Web Development
+							</button>
+						</>
+					)}
+				</div>
+			</div>
+		</div>
+
 		{/* Blog List */}
-		<div class="space-y-12 mt-12">
+		<div id="blog-list" class="space-y-16 mt-8">
 			{posts.length > 0 ? (
 				posts.map((post) => (
-					<article class="group border-b border-neutral-200 pb-10 last:border-0">
-						<a href={`/blog/${post.id}/`} class="block space-y-4">
-							<div class="flex items-center space-x-4 text-xs font-mono text-neutral-400">
-								<span><FormattedDate date={post.data.pubDate} /></span>
-								{/* Placeholder for tags if they existed in the schema */}
-								{post.data.tags && (
-									<div class="flex gap-2">
-										{post.data.tags.map((tag) => (
-											<span class="flex items-center gap-0.5"><TagIcon size={10} />{tag}</span>
-										))}
-									</div>
-								)}
-							</div>
+					<article 
+						class="post-item group space-y-4"
+						data-title={post.data.title.toLowerCase()}
+						data-description={post.data.description.toLowerCase()}
+						data-tags={post.data.tags.join(',').toLowerCase() || 'web development,gemini cli'}
+					>
+						<div class="flex items-center space-x-4 text-xs font-mono text-neutral-400">
+							<FormattedDate date={post.data.pubDate} />
+							{post.data.tags && post.data.tags.length > 0 && (
+								<div class="flex gap-3">
+									{post.data.tags.map((tag) => (
+										<span class="flex items-center gap-1">
+											<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tag"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.59-6.59c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+											{tag}
+										</span>
+									))}
+								</div>
+							)}
+							{/* Demo tags if none present */}
+							{(!post.data.tags || post.data.tags.length === 0) && (
+								<div class="flex gap-3">
+									<span class="flex items-center gap-1">
+										<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tag"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.59-6.59c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+										Web Development
+									</span>
+									<span class="flex items-center gap-1">
+										<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tag"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.59-6.59c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+										Gemini CLI
+									</span>
+								</div>
+							)}
+						</div>
+						
+						<a href={`${import.meta.env.BASE_URL}/blog/${post.id}/`} class="block space-y-4">
 							<h3 class="text-2xl font-serif text-neutral-800 group-hover:text-neutral-500 transition-colors duration-300">
 								{post.data.title}
 							</h3>
-							<p class="text-neutral-600 text-sm leading-relaxed line-clamp-2 italic font-serif">
+							<p class="text-neutral-600 text-sm leading-relaxed max-w-4xl font-serif">
 								{post.data.description}
 							</p>
-							<div class="text-xs text-neutral-400 font-serif tracking-widest uppercase group-hover:text-neutral-800 transition-colors duration-300 flex items-center gap-2">
-								Read More <span class="group-hover:translate-x-1 transition-transform duration-300">→</span>
+							<div class="text-xs text-neutral-400 font-serif tracking-widest uppercase transition-colors duration-300 flex items-center gap-1 pt-2">
+								READ MORE <span class="group-hover:translate-x-1 transition-transform duration-300">→</span>
 							</div>
 						</a>
 					</article>
@@ -52,6 +124,90 @@ const posts = (await getCollection('blog')).sort(
 					No posts found.
 				</div>
 			)}
+			<div id="no-results" class="hidden text-center py-20 text-neutral-400 italic font-serif">
+				No posts match your search or filter.
+			</div>
 		</div>
 	</div>
 </BaseLayout>
+
+<script is:inline>
+	function initFilters() {
+		const searchInput = document.getElementById('blog-search');
+		const tagButtons = document.querySelectorAll('.tag-button');
+		const postItems = document.querySelectorAll('.post-item');
+		const noResults = document.getElementById('no-results');
+		
+		let currentTag = 'all';
+		let searchQuery = '';
+
+		function applyFilters() {
+			let visibleCount = 0;
+			postItems.forEach(item => {
+				const title = item.getAttribute('data-title') || '';
+				const description = item.getAttribute('data-description') || '';
+				const tags = item.getAttribute('data-tags') || '';
+				
+				const matchesSearch = !searchQuery || 
+					title.includes(searchQuery) || 
+					description.includes(searchQuery) ||
+					tags.includes(searchQuery);
+				
+				const matchesTag = currentTag === 'all' || 
+					tags.split(',').map(t => t.trim()).includes(currentTag.toLowerCase());
+
+				if (matchesSearch && matchesTag) {
+					item.classList.remove('hidden');
+					visibleCount++;
+				} else {
+					item.classList.add('hidden');
+				}
+			});
+
+			if (visibleCount === 0) {
+				noResults.classList.remove('hidden');
+			} else {
+				noResults.classList.add('hidden');
+			}
+		}
+
+		// Handle tags
+		tagButtons.forEach(button => {
+			button.addEventListener('click', () => {
+				// Update buttons
+				tagButtons.forEach(btn => {
+					btn.classList.remove('bg-neutral-800', 'text-white');
+					btn.classList.add('bg-white', 'text-neutral-600', 'border-neutral-300');
+				});
+				button.classList.remove('bg-white', 'text-neutral-600', 'border-neutral-300');
+				button.classList.add('bg-neutral-800', 'text-white');
+				
+				currentTag = button.getAttribute('data-tag');
+				applyFilters();
+			});
+		});
+
+		// Handle search
+		if (searchInput) {
+			searchInput.addEventListener('input', (e) => {
+				searchQuery = e.target.value.toLowerCase().trim();
+				applyFilters();
+			});
+
+			// Initial search from URL parameter
+			const urlParams = new URLSearchParams(window.location.search);
+			const initialQuery = urlParams.get('q');
+			if (initialQuery) {
+				searchInput.value = initialQuery;
+				searchQuery = initialQuery.toLowerCase().trim();
+				applyFilters();
+			}
+		}
+	}
+
+	// Initialize on load
+	initFilters();
+	
+	// Re-initialize on view transitions if active
+	document.addEventListener('astro:after-swap', initFilters);
+</script>

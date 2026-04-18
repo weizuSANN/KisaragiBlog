@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Information | KisaragiLab" description="Information about the site and its history.">
+	<div class="space-y-12 animate-fade-in">
+		<div class="text-center space-y-4">
+			<h2 class="text-3xl font-serif tracking-[0.3em] text-neutral-800 border-b border-neutral-300 pb-6 inline-block px-12 uppercase">
+				Information
+			</h2>
+		</div>
+
+		<div class="max-w-3xl mx-auto space-y-12 py-8">
+			{/* About this site */}
+			<section class="space-y-4">
+				<h3 class="text-xl font-serif text-neutral-800 border-l-4 border-neutral-800 pl-4 tracking-wider">
+					About this site
+				</h3>
+				<div class="text-neutral-600 text-sm leading-relaxed space-y-2 pl-5">
+					<p>当サイトはグリムリーパーの個人サイトです。</p>
+					<p>主に開発した作品の紹介や、週次報告書的に更新していけたらなと思っています。</p>
+					<p>更新頻度は週1を目標にしますが、時期によっては不定期になる可能性があります。そう言ったときは気長にお待ちください。</p>
+				</div>
+			</section>
+
+			{/* Contact */}
+			<section class="space-y-4">
+				<h3 class="text-xl font-serif text-neutral-800 border-l-4 border-neutral-800 pl-4 tracking-wider">
+					Contact
+				</h3>
+				<div class="text-neutral-600 text-sm leading-relaxed space-y-2 pl-5">
+					<p>お問い合わせは、SNSのダイレクトメッセージにてお願いいたします。</p>
+					<p>返信には数日お時間をいただく場合がございます。</p>
+				</div>
+			</section>
+
+			{/* History */}
+			<section class="space-y-4">
+				<h3 class="text-xl font-serif text-neutral-800 border-l-4 border-neutral-800 pl-4 tracking-wider">
+					History
+				</h3>
+				<div class="pl-5">
+					<ul class="space-y-3">
+						<li class="flex items-baseline space-x-6">
+							<span class="text-neutral-400 font-mono text-sm">2026.03.31</span>
+							<span class="text-neutral-600 text-sm">サイトリニューアル・公開</span>
+						</li>
+						<li class="flex items-baseline space-x-6">
+							<span class="text-neutral-400 font-mono text-sm">2026.03.31</span>
+							<span class="text-neutral-600 text-sm">旧サイト閉鎖</span>
+						</li>
+					</ul>
+				</div>
+			</section>
+		</div>
+	</div>
+</BaseLayout>

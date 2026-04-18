@@ -66,3 +66,43 @@ h1, h2, h3, h4, h5, h6 {
 .prose h1, .prose h2, .prose h3 {
   @apply border-b border-neutral-200 pb-2 mb-4;
 }
+
+/* Embed Styles */
+.embed-container {
+  @apply mx-auto my-12 shadow-xl rounded-lg overflow-hidden border border-neutral-200 bg-white;
+}
+
+.youtube-embed {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 */
+  height: 0;
+  max-width: 100%;
+}
+
+.youtube-embed iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.twitter-embed {
+  max-width: 550px;
+  @apply mx-auto my-12 p-1;
+}
+
+.twitter-embed .twitter-tweet {
+  margin: 0 auto !important;
+  @apply border border-neutral-200 rounded-xl p-8 bg-white text-center italic text-neutral-400 font-sans;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.twitter-embed iframe {
+  @apply !mx-auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}

@@ -5,49 +5,58 @@ import FormattedDate from '../components/FormattedDate.astro';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
-).slice(0, 3);
+).slice(0, 5);
 ---
 
 <BaseLayout>
-	<div class="space-y-12 animate-fade-in">
-		<div class="text-center space-y-4">
-			<h2 class="text-2xl font-serif tracking-widest text-neutral-800 border-b border-neutral-300 pb-4 inline-block px-8">Welcome</h2>
-			<p class="text-neutral-500 text-sm leading-relaxed mt-6">
+	<div class="space-y-16 animate-fade-in">
+		<div class="text-center space-y-6">
+			<h2 class="text-3xl font-serif tracking-[0.3em] text-neutral-800 border-b border-neutral-300 pb-6 inline-block px-12 uppercase">
+				Welcome
+			</h2>
+			<p class="text-neutral-500 text-sm tracking-wider leading-relaxed">
 				当サイトへお越しいただきありがとうございます。<br />
-				なんもないですがゆっくりしていってください。<br />
+				ロボット製作やプログラミング、デザインなどの活動記録をのんびり更新しています。
 			</p>
 		</div>
 
 		{/* Main Visual Placeholder */}
-		<div class="w-full h-64 bg-neutral-200 border border-neutral-300 flex items-center justify-center shadow-inner group overflow-hidden relative">
+		<div class="w-full h-80 bg-neutral-200 border border-neutral-300 flex items-center justify-center shadow-inner group overflow-hidden relative">
 			<div class="absolute inset-0 bg-neutral-800 opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
-			<span class="text-neutral-400 tracking-widest font-serif text-sm relative z-10 uppercase">Main Visual</span>
+			<div class="flex flex-col items-center space-y-2 relative z-10 transition-transform duration-700 group-hover:scale-105">
+				<span class="text-neutral-400 tracking-[0.5em] font-serif text-xs uppercase">Kisaragi Lab</span>
+				<span class="text-neutral-300 tracking-[0.2em] font-serif text-[8px] uppercase">Est. 2026</span>
+			</div>
 		</div>
 
-		<div class="space-y-6">
-			<h3 class="text-lg font-serif tracking-wider text-neutral-800 border-l-4 border-neutral-800 pl-3">Recent Updates</h3>
-			<ul class="space-y-4">
+		<div class="space-y-8 max-w-2xl mx-auto">
+			<h3 class="text-lg font-serif tracking-widest text-neutral-800 border-l-4 border-neutral-800 pl-4 uppercase">
+				Recent Updates
+			</h3>
+			<ul class="space-y-0">
 				{posts.length > 0 ? (
 					posts.map((post) => (
-						<li class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 border-b border-neutral-200 pb-2 transition-colors hover:bg-neutral-200/50 group">
-							<span class="text-neutral-400 font-mono text-xs">
-								<FormattedDate date={post.data.pubDate} />
-							</span>
-							<a href={`/blog/${post.id}/`} class="text-neutral-700 hover:text-neutral-900 transition-colors flex-grow">
-								{post.data.title}
+						<li class="border-b border-neutral-200 transition-colors hover:bg-neutral-200/50 group">
+							<a href={`${import.meta.env.BASE_URL}/blog/${post.id}/`} class="flex flex-col sm:flex-row sm:items-center py-4 px-2 sm:space-x-8">
+								<span class="text-neutral-400 font-mono text-xs mb-1 sm:mb-0">
+									<FormattedDate date={post.data.pubDate} />
+								</span>
+								<span class="text-neutral-700 hover:text-neutral-900 transition-colors flex-grow text-sm tracking-wide">
+									{post.data.title}
+								</span>
+								<span class="text-neutral-300 group-hover:text-neutral-500 transition-colors text-[10px] font-mono mt-2 sm:mt-0">
+									DETAILS →
+								</span>
 							</a>
-							<span class="text-neutral-300 group-hover:text-neutral-500 transition-colors text-xs font-mono">
-								READ →
-							</span>
 						</li>
 					))
 				) : (
-					<li class="text-neutral-400 italic">No updates available.</li>
+					<li class="text-neutral-400 italic py-4 text-sm font-serif">No updates available.</li>
 				)}
 			</ul>
-			<div class="text-center mt-8">
-				<a href="/blog" class="inline-block px-8 py-2 border border-neutral-300 text-neutral-600 text-sm tracking-widest hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-300 uppercase font-serif">
-					View All Posts
+			<div class="text-center mt-12">
+				<a href={`${import.meta.env.BASE_URL}/blog`} class="inline-block px-12 py-3 border border-neutral-300 text-neutral-600 text-[10px] tracking-[0.3em] hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 uppercase font-serif">
+					View Archive
 				</a>
 			</div>
 		</div>

@@ -3,6 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 import BaseLayout from './BaseLayout.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import { Image } from 'astro:assets';
+import Comments from '../components/Comments.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 
@@ -40,6 +41,8 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 			<div class="content text-neutral-700 leading-relaxed text-lg font-serif">
 				<slot />
 			</div>
+			
+			<Comments />
 		</div>
 	</article>
 </BaseLayout>

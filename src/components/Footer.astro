@@ -3,16 +3,13 @@ import { Twitter, Github } from 'lucide-astro';
 const today = new Date();
 ---
 
-<footer class="bg-neutral-900 text-neutral-400 py-12 flex flex-col items-center justify-center space-y-6">
-  <div class="flex space-x-6">
-    <a href="https://twitter.com/Kaede_Reape0430" class="hover:text-white transition-all duration-300 hover:-translate-y-1 transform">
-      <Twitter size={24} strokeWidth={1.5} />
-    </a>
-    <a href="https://github.com/weizuSANN" class="hover:text-white transition-all duration-300 hover:-translate-y-1 transform">
-      <Github size={24} strokeWidth={1.5} />
+<footer class="bg-neutral-900 text-neutral-500 py-16 flex flex-col items-center justify-center space-y-8">
+  <div class="flex space-x-8">
+    <a href="https://twitter.com/Kaede_Reape0430" class="hover:text-white transition-opacity duration-300 opacity-60 hover:opacity-100" aria-label="Twitter">
+      <Twitter size={24} strokeWidth={1} />
     </a>
   </div>
-  <div class="text-center space-y-2">
-    <p class="text-xs tracking-widest">© {today.getFullYear()} KisaragiLab. All rights reserved.</p>
+  <div class="text-center">
+    <p class="text-[10px] tracking-[0.2em] uppercase font-mono opacity-60">© {today.getFullYear()} KisaragiLab. All rights reserved.</p>
   </div>
 </footer>
