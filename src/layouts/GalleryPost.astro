@@ -1,0 +1,64 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from './BaseLayout.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+import { Image } from 'astro:assets';
+
+type Props = CollectionEntry<'gallery'>['data'];
+
+const { title, description, pubDate, heroImage } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<BaseLayout title={title} description={description}>
+	<article class="animate-fade-in">
+		<div class="hero-image mb-12">
+			{heroImage && (
+				<img 
+					src={`${base}${heroImage}`} 
+					alt="" 
+					class="w-full rounded-xl shadow-xl mx-auto block object-cover max-h-[60vh]"
+				/>
+			)}
+		</div>
+		<div class="prose prose-neutral mx-auto max-w-4xl">
+			<div class="title text-center mb-12">
+				<div class="date text-neutral-500 text-sm mb-4">
+					<FormattedDate date={pubDate} />
+				</div>
+				<h1 class="text-3xl md:text-4xl font-serif text-neutral-800 mb-6 uppercase tracking-widest">{title}</h1>
+				<hr class="border-neutral-300" />
+			</div>
+			<div class="content text-neutral-700 leading-relaxed text-lg font-serif">
+				<slot />
+			</div>
+			
+			<div class="mt-16 pt-8 border-t border-neutral-200 text-center">
+				<a href={`${base}/gallery`} class="text-neutral-500 hover:text-neutral-800 transition-colors italic tracking-widest text-sm">
+					← Back to Gallery
+				</a>
+			</div>
+		</div>
+	</article>
+</BaseLayout>
+
+<style is:global>
+	.content h1, .content h2, .content h3 {
+		font-family: 'Noto Serif JP', serif;
+		color: #262626;
+		margin-top: 3rem;
+		margin-bottom: 1.5rem;
+		border-bottom: 1px solid #e5e5e5;
+		padding-bottom: 0.5rem;
+	}
+	.content p {
+		margin-bottom: 1.5rem;
+	}
+	.content img {
+		border-radius: 0.5rem;
+		margin-top: 2rem;
+		margin-bottom: 2rem;
+		box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+		width: 100%;
+	}
+</style>

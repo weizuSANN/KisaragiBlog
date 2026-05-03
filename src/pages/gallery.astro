@@ -1,5 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const posts = (await getCollection('gallery')).sort(
+	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
 ---
 
 <BaseLayout title="Works | KisaragiLab" description="Showcase of projects and works.">
@@ -13,14 +20,45 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 			</p>
 		</div>
 
-		<div class="max-w-4xl mx-auto py-24 flex flex-col items-center justify-center space-y-12">
-			<div class="text-neutral-400 font-serif italic text-xl tracking-widest mt-12 mb-24">
-				No works found.
-			</div>
-			
-			<div class="text-neutral-400 font-serif italic text-sm tracking-widest">
-				More projects coming soon...
-			</div>
+		<div class="max-w-6xl mx-auto py-12">
+			{posts.length > 0 ? (
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+					{posts.map((post) => (
+						<a href={`${base}/gallery/${post.id}/`} class="group block space-y-4">
+							<div class="aspect-video overflow-hidden bg-neutral-200 shadow-lg group-hover:shadow-xl transition-all duration-500">
+								{post.data.heroImage && (
+									<img 
+										src={`${base}${post.data.heroImage}`} 
+										alt={post.data.title}
+										class="w-full h-full object-cover grayscale group-hover:grayscale-0 scale-100 group-hover:scale-110 transition-all duration-700"
+									/>
+								)}
+							</div>
+							<div class="space-y-2 text-center">
+								<h3 class="text-lg font-serif tracking-widest text-neutral-800 group-hover:text-neutral-600 transition-colors">
+									{post.data.title}
+								</h3>
+								<p class="text-xs text-neutral-400 italic tracking-tighter">
+									{post.data.pubDate.toLocaleDateString('ja-JP', {
+										year: 'numeric',
+										month: 'short',
+										day: 'numeric',
+									})}
+								</p>
+							</div>
+						</a>
+					))}
+				</div>
+			) : (
+				<div class="max-w-4xl mx-auto py-24 flex flex-col items-center justify-center space-y-12">
+					<div class="text-neutral-400 font-serif italic text-xl tracking-widest mt-12 mb-24">
+						No works found.
+					</div>
+					<div class="text-neutral-400 font-serif italic text-sm tracking-widest">
+						More projects coming soon...
+					</div>
+				</div>
+			)}
 		</div>
 	</div>
 </BaseLayout>

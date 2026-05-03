@@ -1,0 +1,765 @@
+---
+title: '無線基板'
+description: 'BLEでコントローラーデータを受信し、CANバスに送信する無線通信基板です。'
+pubDate: '2026-05-03'
+heroImage: '/Gallery/Wireless/WirelessBoard.png'
+---
+
+
+## 概要
+Flutterで作成されたオリジナルのスマホコントローラーアプリからの操作データをBLE経由で受信し、CANFDで流す基板です。
+![コントローラーアプリ](/KisaragiBlog/Gallery/Wireless/WirelessController.png)
+
+## 回路図
+![回路図](/KisaragiBlog/Gallery/Wireless/Wireless_v6.png)
+回路図はこちらになっています。小型化のためにCANFDデータ転送のためにメインマイコンにはSTM32G431KBT6を利用し、無線マイコンにはXIAO ESP32-S3を採用しています。基本的な仕組みはESPがスマホからのBLE操作データを受け取り、UARTでSTM32に送信、受信してそのままCANFDに送信、という流れです。CANトランシーバーのMCP2542FDはサンプル請求を使うと月1,2くらいの頻度で無料で3個もらえます。配線のことを考えてPA14側とPA0側にペリフェラルを集中させて、配線をしやすくしました。また、ESP32S3のUSB電源供給で逆流が生じないように、CANコネクタ→ショットキーダイオード→ESP32S3、とつなぐ設計にしています。通常はCAN用のXH4ピンから電源を持ってきて、無線実験をするときはUSBから供給という方向性になっています。
+
+## ソフトウェア
+Flutterアプリは、アンドロイド用にしか開発してません。また、スマホアプリ、Bluetoothを使うなど、セキュリティ的に保証できない部分が含まれてますので、一旦非公開とさせていただきます。現状プロジェクトデータのほとんどをPrivateリポジトリに上げています。どうしても欲しい方はDMなどで声かけてくだされば、セキュリティなどを保証しないという条件付きで提供する可能性があります。
+
+マイコン周りのプログラムは以下の通りです。  
+ESP32S3側はArduino IDEで書き込んでいます。
+<details>
+<summary>ESP32S3プログラム</summary>
+```cpp
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+#include <Wire.h>
+
+#define DEVICENAME "UART test"
+#define INTERVAL 1000 //millisec
+
+#define SERVICE_UUID           "任意のUUID"
+#define CHARACTERISTIC_UUID_RX "任意のUUID"
+#define CHARACTERISTIC_UUID_TX "任意のUUID"
+
+BLEServer *pServer = NULL;
+BLECharacteristic * pTxCharacteristic;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+bool newDataReceived = false;
+
+// --- コントローラーのデータ格納用配列 ---
+// 初期値 [0x1A(ヘッダ), btn1, btn2, joyLX, joyLY, joyRX, joyRY, rssi, 0x00(フッタ)]
+uint8_t packetData[9] = {0x1A, 0, 0, 127, 127, 127, 127, 0, 0};
+
+unsigned long lastPrintTime = 0;
+
+class MyServerCallbacks: public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) {
+    deviceConnected = true;
+    // Serial.println("** device connected");
+  };
+
+  void onDisconnect(BLEServer* pServer) {
+    deviceConnected = false;
+    // Serial.println("** device disconnected");
+  }
+};
+
+class MyCallbacks: public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    uint8_t* rxValue = pCharacteristic->getData();
+    size_t rxLength = pCharacteristic->getLength();
+
+    // 9バイト以上受信した場合のみ処理
+    if (rxLength >= 9) {
+      bool isValidPacket = false;
+
+      // パターン1: ヘッダが0x1Aのパケット
+      if (rxValue[0] == 0x1A) {
+        isValidPacket = true;
+      }
+      // パターン2: 全てFFで最後が00のパケット
+      // (0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00)
+      else if (rxValue[0] == 0xFF && rxValue[1] == 0xFF && rxValue[2] == 0xFF && 
+               rxValue[3] == 0xFF && rxValue[4] == 0xFF && rxValue[5] == 0xFF && 
+               rxValue[6] == 0xFF && rxValue[7] == 0xFF && rxValue[8] == 0x00) {
+        isValidPacket = true;
+      }
+
+      // 有効なパケットであればバッファにコピー
+      if (isValidPacket) {
+        for (int i = 0; i < 9; i++) {
+          packetData[i] = rxValue[i];
+        }
+        newDataReceived = true;
+      }
+    }
+  }
+};
+
+void setup() {
+  // PCモニタリング用のUSBシリアル
+  Serial.begin(115200);
+  
+  // STM32通信用のハードウェアシリアル (XIAO ESP32S3のD6/D7ピンを使用)
+  // begin(baud, config, RX_PIN, TX_PIN)
+  // D7 = GPIO44(RX), D6 = GPIO43(TX)
+  Serial1.begin(115200, SERIAL_8N1, 44, 43);
+  
+  BLEDevice::init(DEVICENAME);
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
+  pTxCharacteristic->addDescriptor(new BLE2902());
+  
+  BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+  pRxCharacteristic->setCallbacks(new MyCallbacks());
+
+  pService->start();
+  pServer->getAdvertising()->start();
+
+  // Serial.println("start advertising");
+}
+
+void loop() {
+  // 50ms間隔でSTM32へ送信（※現在は受信したタイミングでのみ送信）
+  if (deviceConnected && newDataReceived) {
+      newDataReceived = false;
+
+      // --- パケット確認用のSerial出力 ---
+      // Serial.print("Received Packet: ");
+      // for (int i = 0; i < 9; i++) {
+      //   // %02X で2桁の16進数（大文字）として出力し、ゼロ埋めする
+      //   Serial.printf("%02X ", packetData[i]);
+      // }
+      // Serial.println(); // 改行
+      // ----------------------------------
+
+      // 9バイトの配列を一括で送信
+      Serial1.write(packetData, 9);
+      lastPrintTime = millis();
+  }
+  
+  if (!deviceConnected && oldDeviceConnected) {
+    delay(500); 
+    pServer->startAdvertising(); 
+    // Serial.println("start advertising");
+    oldDeviceConnected = deviceConnected;
+  }
+
+  if (deviceConnected && !oldDeviceConnected) {
+    oldDeviceConnected = deviceConnected;
+  }
+  
+  delay(2);
+}
+```
+</details>
+
+STM32側は、CubeMXを使ってプロジェクトを作成し、Antigravityから拡張機能を使って書き込んでいます。
+<details>
+<summary>STM32G431KBT6プログラム</summary>
+
+```c
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "stm32g4xx_hal_fdcan.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include <stdio.h>
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+FDCAN_HandleTypeDef hfdcan1;
+
+TIM_HandleTypeDef htim1;
+DMA_HandleTypeDef hdma_tim1_ch1;
+
+UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+uint8_t uart2_rx_buf[64];
+volatile uint8_t packet_pending = 0;
+uint8_t stable_packet[9];
+FDCAN_TxHeaderTypeDef txHeader;
+
+/* WS2812B definition (1 LED) */
+#define WS2812B_LED_COUNT 1
+#define WS2812B_RESET_PULSE 50
+#define WS2812B_PWM_LEN (WS2812B_LED_COUNT * 24 + WS2812B_RESET_PULSE)
+uint32_t ws2812_pwm_data[WS2812B_PWM_LEN];
+
+/* PWM values for 170MHz clock, ARR=199 (850kHz) */
+#define WS2812B_PULSE_HIGH 120 // ~0.7us
+#define WS2812B_PULSE_LOW  60  // ~0.35us
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
+static void MX_FDCAN1_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_TIM1_Init(void);
+/* USER CODE BEGIN PFP */
+void WS2812B_SetRGB(uint8_t r, uint8_t g, uint8_t b);
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_FDCAN1_Init();
+  MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
+  MX_TIM1_Init();
+  /* USER CODE BEGIN 2 */
+  /* FDCAN Tx Header configuration */
+  txHeader.Identifier = 0x14101010;
+  txHeader.IdType = FDCAN_EXTENDED_ID;
+  txHeader.TxFrameType = FDCAN_DATA_FRAME;
+  txHeader.DataLength = FDCAN_DLC_BYTES_8;
+  txHeader.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+  txHeader.BitRateSwitch = FDCAN_BRS_ON; // BRS有効 (8Mbpsデータフェーズ)
+  txHeader.FDFormat = FDCAN_FD_CAN;
+  txHeader.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+  txHeader.MessageMarker = 0;
+
+  /* Start FDCAN */
+  HAL_FDCAN_Start(&hfdcan1);
+
+  /* Initial WS2812B color (Green for status) */
+  WS2812B_SetRGB(0, 50, 0);
+  HAL_TIM_PWM_Start_DMA(&htim1, TIM_CHANNEL_1, (uint32_t *)ws2812_pwm_data, WS2812B_PWM_LEN);
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+    uint8_t rx_byte;
+    while (HAL_UART_Receive(&huart2, &rx_byte, 1, 0) == HAL_OK)
+    {
+      static uint8_t rx_idx = 0;
+      if (rx_idx == 0) {
+        if (rx_byte == 0x1A || rx_byte == 0xFF) {
+          uart2_rx_buf[rx_idx++] = rx_byte;
+        }
+      } else {
+        uart2_rx_buf[rx_idx++] = rx_byte;
+        if (rx_idx >= 9) {
+          for (int i = 0; i < 9; i++) {
+            stable_packet[i] = uart2_rx_buf[i];
+          }
+          packet_pending = 1;
+          rx_idx = 0;
+        }
+      }
+    }
+
+    // エラークリア (オーバーラン等が発生した場合に備える)
+    if (__HAL_UART_GET_FLAG(&huart2, UART_FLAG_ORE) != RESET)
+    {
+      __HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
+    }
+    
+    if (packet_pending)
+    {
+      packet_pending = 0;
+
+      uint8_t is_special = 1;
+      for (int i = 0; i < 8; i++) {
+        if (stable_packet[i] != 0xFF) {
+          is_special = 0;
+          break;
+        }
+      }
+      if (stable_packet[8] != 0x00) {
+        is_special = 0;
+      }
+
+      if (is_special) {
+        FDCAN_TxHeaderTypeDef specialTxHeader = txHeader;
+        specialTxHeader.Identifier = 0x00100001;
+        specialTxHeader.IdType = FDCAN_EXTENDED_ID;
+        specialTxHeader.DataLength = FDCAN_DLC_BYTES_1;
+        uint8_t specialData = 0xFF;
+        
+        HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &specialTxHeader, &specialData);
+        printf("ESP32 PKT: Special Packet Processed\r\n");
+      } else if (stable_packet[0] == 0x1A) {
+        // Extract data from stable buffer
+        uint8_t btn1 = stable_packet[1];
+        uint8_t btn2 = stable_packet[2];
+        uint8_t jLX  = stable_packet[3];
+        uint8_t jLY  = stable_packet[4];
+        uint8_t jRX  = stable_packet[5];
+        uint8_t jRY  = stable_packet[6];
+        uint8_t rssi = stable_packet[7];
+
+        // 1. Output to printf
+        printf("ESP32 PKT: B1:%02X B2:%02X LX:%d LY:%d RX:%d RY:%d RSSI:%d\r\n", btn1, btn2, jLX, jLY, jRX, jRY, rssi);
+
+        // 2. Output to CANFD (Full payload)
+        if (HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &txHeader, &stable_packet[1]) != HAL_OK)
+        {
+          uint32_t psr = hfdcan1.Instance->PSR;
+          uint32_t txfqs = hfdcan1.Instance->TXFQS;
+          // printf("01_Wireless CAN TX Failed. State=%d, ErrCode=0x%lX, PSR=0x%08lX, TXFQS=0x%08lX\r\n", hfdcan1.State, hfdcan1.ErrorCode, psr, txfqs);
+        }
+
+        // 3. WS2812B color update (Red if button A (bit 7 of btn1) is pressed, else Blue)
+        if (btn1 & 0x80) {
+          WS2812B_SetRGB(100, 0, 0); // Red
+        } else {
+          WS2812B_SetRGB(0, 0, 100); // Blue
+        }
+        
+        // DMAを一度停止し、タイマーカウンタを0に戻すことで、最初のパルス幅が伸びてしまう（緑が誤点灯する）のを防ぐ
+        HAL_TIM_PWM_Stop_DMA(&htim1, TIM_CHANNEL_1);
+        htim1.Instance->CNT = 0;
+        HAL_TIM_PWM_Start_DMA(&htim1, TIM_CHANNEL_1, (uint32_t *)ws2812_pwm_data, WS2812B_PWM_LEN);
+      }
+    }
+    // HAL_Delay(1);
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1_BOOST);
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
+  RCC_OscInitStruct.PLL.PLLN = 20;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief FDCAN1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_FDCAN1_Init(void)
+{
+
+  /* USER CODE BEGIN FDCAN1_Init 0 */
+
+  /* USER CODE END FDCAN1_Init 0 */
+
+  /* USER CODE BEGIN FDCAN1_Init 1 */
+
+  /* USER CODE END FDCAN1_Init 1 */
+  hfdcan1.Instance = FDCAN1;
+  hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
+  hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+  hfdcan1.Init.AutoRetransmission = DISABLE;
+  hfdcan1.Init.TransmitPause = DISABLE;
+  hfdcan1.Init.ProtocolException = DISABLE;
+  hfdcan1.Init.NominalPrescaler = 1;
+  hfdcan1.Init.NominalSyncJumpWidth = 16;
+  hfdcan1.Init.NominalTimeSeg1 = 127;
+  hfdcan1.Init.NominalTimeSeg2 = 32;
+  hfdcan1.Init.DataPrescaler = 1;
+  hfdcan1.Init.DataSyncJumpWidth = 5;
+  hfdcan1.Init.DataTimeSeg1 = 14;
+  hfdcan1.Init.DataTimeSeg2 = 5;
+  hfdcan1.Init.StdFiltersNbr = 0;
+  hfdcan1.Init.ExtFiltersNbr = 0;
+  hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
+  if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN FDCAN1_Init 2 */
+  /* 8Mbps通信のための送信遅延補償(TDC)を有効化 */
+  HAL_FDCAN_ConfigTxDelayCompensation(&hfdcan1, hfdcan1.Init.DataTimeSeg1 * hfdcan1.Init.DataPrescaler, 0);
+  HAL_FDCAN_EnableTxDelayCompensation(&hfdcan1);
+  /* USER CODE END FDCAN1_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 199;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.BreakAFMode = TIM_BREAK_AFMODE_INPUT;
+  sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+  sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+  sBreakDeadTimeConfig.Break2Filter = 0;
+  sBreakDeadTimeConfig.Break2AFMode = TIM_BREAK_AFMODE_INPUT;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart2, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart2, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMAMUX1_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+
+  /* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  /* USER CODE END MX_GPIO_Init_2 */
+}
+
+/* USER CODE BEGIN 4 */
+void WS2812B_SetRGB(uint8_t r, uint8_t g, uint8_t b)
+{
+  // WS2812B uses GRB order
+  uint32_t color = (g << 16) | (r << 8) | b;
+
+  for (int i = 0; i < 24; i++)
+  {
+    if (color & (1 << (23 - i)))
+    {
+      ws2812_pwm_data[i] = WS2812B_PULSE_HIGH;
+    }
+    else
+    {
+      ws2812_pwm_data[i] = WS2812B_PULSE_LOW;
+    }
+  }
+  // Reset pulse (already zeroed by static/global initialization, but ensuring here)
+  for (int i = 24; i < WS2812B_PWM_LEN; i++)
+  {
+    ws2812_pwm_data[i] = 0;
+  }
+}
+
+int _write(int file, char *ptr, int len)
+{
+  HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, HAL_MAX_DELAY);
+  return len;
+}
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+#ifdef USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
+
+```
+</details>
+
